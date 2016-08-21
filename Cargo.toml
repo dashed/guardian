@@ -16,3 +16,4 @@ keywords = ["locks","mutex","synchronization","rc"]
 license = "MIT/Apache-2.0"
 
 [dependencies]
+parking_lot = "0.2"

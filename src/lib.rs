@@ -16,10 +16,15 @@
 //! result may be poisoned on panics. The poison is propagated from that of the underlying `lock()`
 //! method, so for `RwLock`s, the same rule applies for when a lock may be poisioned.
 
+extern crate parking_lot;
+
 use std::rc;
-use std::sync;
+use std::sync::{Arc};
 use std::ops::Deref;
 use std::ops::DerefMut;
+
+use parking_lot::{Mutex, MutexGuard, RwLock, RwLockReadGuard, RwLockWriteGuard};
+
 
 // ATTENTION READERS:
 // Most of the code looks identical for Arc vs Rc, for RwLockRead vs RwLockWrite, and for Mutex vs
@@ -36,8 +41,8 @@ use std::ops::DerefMut;
 /// The data protected by the mutex can be access through this guard via its `Deref` and `DerefMut`
 /// implementations.
 pub struct ArcRwLockReadGuardian<T: 'static> {
-    _handle: sync::Arc<sync::RwLock<T>>,
-    inner: sync::RwLockReadGuard<'static, T>,
+    _handle: Arc<RwLock<T>>,
+    inner: RwLockReadGuard<'static, T>,
 }
 
 /// RAII structure used to release the exclusive write access of a lock when dropped.
@@ -46,8 +51,8 @@ pub struct ArcRwLockReadGuardian<T: 'static> {
 /// The data protected by the mutex can be access through this guard via its `Deref` and `DerefMut`
 /// implementations.
 pub struct ArcRwLockWriteGuardian<T: 'static> {
-    _handle: sync::Arc<sync::RwLock<T>>,
-    inner: sync::RwLockWriteGuard<'static, T>,
+    _handle: Arc<RwLock<T>>,
+    inner: RwLockWriteGuard<'static, T>,
 }
 
 /// An RAII implementation of a "scoped lock" of a mutex. When this structure is dropped (falls out
@@ -57,8 +62,8 @@ pub struct ArcRwLockWriteGuardian<T: 'static> {
 /// The data protected by the mutex can be access through this guard via its `Deref` and `DerefMut`
 /// implementations.
 pub struct ArcMutexGuardian<T: 'static> {
-    _handle: sync::Arc<sync::Mutex<T>>,
-    inner: sync::MutexGuard<'static, T>,
+    _handle: Arc<Mutex<T>>,
+    inner: MutexGuard<'static, T>,
 }
 
 /// RAII structure used to release the shared read access of a lock when dropped.
@@ -67,8 +72,8 @@ pub struct ArcMutexGuardian<T: 'static> {
 /// The data protected by the mutex can be access through this guard via its `Deref` and `DerefMut`
 /// implementations.
 pub struct RcRwLockReadGuardian<T: 'static> {
-    _handle: rc::Rc<sync::RwLock<T>>,
-    inner: sync::RwLockReadGuard<'static, T>,
+    _handle: rc::Rc<RwLock<T>>,
+    inner: RwLockReadGuard<'static, T>,
 }
 
 /// RAII structure used to release the exclusive write access of a lock when dropped.
@@ -77,8 +82,8 @@ pub struct RcRwLockReadGuardian<T: 'static> {
 /// The data protected by the mutex can be access through this guard via its `Deref` and `DerefMut`
 /// implementations.
 pub struct RcRwLockWriteGuardian<T: 'static> {
-    _handle: rc::Rc<sync::RwLock<T>>,
-    inner: sync::RwLockWriteGuard<'static, T>,
+    _handle: rc::Rc<RwLock<T>>,
+    inner: RwLockWriteGuard<'static, T>,
 }
 
 /// An RAII implementation of a "scoped lock" of a mutex. When this structure is dropped (falls out
@@ -88,8 +93,8 @@ pub struct RcRwLockWriteGuardian<T: 'static> {
 /// The data protected by the mutex can be access through this guard via its `Deref` and `DerefMut`
 /// implementations.
 pub struct RcMutexGuardian<T: 'static> {
-    _handle: rc::Rc<sync::Mutex<T>>,
-    inner: sync::MutexGuard<'static, T>,
+    _handle: rc::Rc<Mutex<T>>,
+    inner: MutexGuard<'static, T>,
 }
 
 // ****************************************************************************
@@ -170,39 +175,39 @@ impl<T> DerefMut for RcMutexGuardian<T> {
 // Traits: From
 // ****************************************************************************
 
-impl<T> From<sync::Arc<sync::RwLock<T>>> for ArcRwLockReadGuardian<T> {
-    fn from(handle: sync::Arc<sync::RwLock<T>>) -> Self {
-        ArcRwLockReadGuardian::take(handle).unwrap()
+impl<T> From<Arc<RwLock<T>>> for ArcRwLockReadGuardian<T> {
+    fn from(handle: Arc<RwLock<T>>) -> Self {
+        ArcRwLockReadGuardian::take(handle)
     }
 }
 
-impl<T> From<sync::Arc<sync::RwLock<T>>> for ArcRwLockWriteGuardian<T> {
-    fn from(handle: sync::Arc<sync::RwLock<T>>) -> Self {
-        ArcRwLockWriteGuardian::take(handle).unwrap()
+impl<T> From<Arc<RwLock<T>>> for ArcRwLockWriteGuardian<T> {
+    fn from(handle: Arc<RwLock<T>>) -> Self {
+        ArcRwLockWriteGuardian::take(handle)
     }
 }
 
-impl<T> From<sync::Arc<sync::Mutex<T>>> for ArcMutexGuardian<T> {
-    fn from(handle: sync::Arc<sync::Mutex<T>>) -> Self {
-        ArcMutexGuardian::take(handle).unwrap()
+impl<T> From<Arc<Mutex<T>>> for ArcMutexGuardian<T> {
+    fn from(handle: Arc<Mutex<T>>) -> Self {
+        ArcMutexGuardian::take(handle)
     }
 }
 
-impl<T> From<rc::Rc<sync::RwLock<T>>> for RcRwLockReadGuardian<T> {
-    fn from(handle: rc::Rc<sync::RwLock<T>>) -> Self {
-        RcRwLockReadGuardian::take(handle).unwrap()
+impl<T> From<rc::Rc<RwLock<T>>> for RcRwLockReadGuardian<T> {
+    fn from(handle: rc::Rc<RwLock<T>>) -> Self {
+        RcRwLockReadGuardian::take(handle)
     }
 }
 
-impl<T> From<rc::Rc<sync::RwLock<T>>> for RcRwLockWriteGuardian<T> {
-    fn from(handle: rc::Rc<sync::RwLock<T>>) -> Self {
-        RcRwLockWriteGuardian::take(handle).unwrap()
+impl<T> From<rc::Rc<RwLock<T>>> for RcRwLockWriteGuardian<T> {
+    fn from(handle: rc::Rc<RwLock<T>>) -> Self {
+        RcRwLockWriteGuardian::take(handle)
     }
 }
 
-impl<T> From<rc::Rc<sync::Mutex<T>>> for RcMutexGuardian<T> {
-    fn from(handle: rc::Rc<sync::Mutex<T>>) -> Self {
-        RcMutexGuardian::take(handle).unwrap()
+impl<T> From<rc::Rc<Mutex<T>>> for RcMutexGuardian<T> {
+    fn from(handle: rc::Rc<Mutex<T>>) -> Self {
+        RcMutexGuardian::take(handle)
     }
 }
 
@@ -219,23 +224,15 @@ macro_rules! take {
         // we have to move the Arc/Rc below, which Rust doesn't know allows the borrow to
         // continue. We therefore transmute to a 'static Guard, and ensure that any borrows we
         // expose are bounded by the lifetime of the guardian (which also holds the Arc/Rc).
-        let lock: sync::LockResult<$guard> =
+
+        let lock: $guard =
             unsafe { mem::transmute($handle.$lfunc()) };
 
-        match lock {
-            Ok(guard) => {
-                Ok($guardian {
-                    _handle: $handle,
-                    inner: guard,
-                })
-            }
-            Err(guard) => {
-                Err(sync::PoisonError::new($guardian {
-                    _handle: $handle,
-                    inner: guard.into_inner(),
-                }))
-            }
+        $guardian {
+            _handle: $handle,
+            inner: lock,
         }
+
     }}
 }
 
@@ -251,8 +248,8 @@ impl<T> ArcRwLockReadGuardian<T> {
     /// Returns an RAII guardian which will release this thread's shared access once it is dropped.
     /// The guardian also holds a strong reference to the lock's `Arc`, which is dropped when the
     /// guard is.
-    pub fn take(handle: sync::Arc<sync::RwLock<T>>) -> sync::LockResult<ArcRwLockReadGuardian<T>> {
-        take!(handle, sync::RwLockReadGuard<'static, T>, ArcRwLockReadGuardian, read)
+    pub fn take(handle: Arc<RwLock<T>>) -> ArcRwLockReadGuardian<T> {
+        take!(handle, RwLockReadGuard<'static, T>, ArcRwLockReadGuardian, read)
     }
 }
 
@@ -272,8 +269,8 @@ impl<T> ArcRwLockWriteGuardian<T> {
     /// This function will return an error if the `RwLock` is poisoned. An `RwLock` is poisoned
     /// whenever a writer panics while holding an exclusive lock. An error will be returned when
     /// the lock is acquired.
-    pub fn take(handle: sync::Arc<sync::RwLock<T>>) -> sync::LockResult<ArcRwLockWriteGuardian<T>> {
-        take!(handle, sync::RwLockWriteGuard<'static, T>, ArcRwLockWriteGuardian, write)
+    pub fn take(handle: Arc<RwLock<T>>) -> ArcRwLockWriteGuardian<T> {
+        take!(handle, RwLockWriteGuard<'static, T>, ArcRwLockWriteGuardian, write)
     }
 }
 
@@ -290,8 +287,8 @@ impl<T> ArcMutexGuardian<T> {
     ///
     /// If another user of this mutex panicked while holding the mutex, then this call will return
     /// an error once the mutex is acquired.
-    pub fn take(handle: sync::Arc<sync::Mutex<T>>) -> sync::LockResult<ArcMutexGuardian<T>> {
-        take!(handle, sync::MutexGuard<'static, T>, ArcMutexGuardian, lock)
+    pub fn take(handle: Arc<Mutex<T>>) -> ArcMutexGuardian<T> {
+        take!(handle, MutexGuard<'static, T>, ArcMutexGuardian, lock)
     }
 }
 
@@ -309,8 +306,8 @@ impl<T> RcRwLockReadGuardian<T> {
     /// Returns an RAII guardian which will release this thread's shared access once it is dropped.
     /// The guardian also holds a strong reference to the lock's `Rc`, which is dropped when the
     /// guard is.
-    pub fn take(handle: rc::Rc<sync::RwLock<T>>) -> sync::LockResult<RcRwLockReadGuardian<T>> {
-        take!(handle, sync::RwLockReadGuard<'static, T>, RcRwLockReadGuardian, read)
+    pub fn take(handle: rc::Rc<RwLock<T>>) -> RcRwLockReadGuardian<T> {
+        take!(handle, RwLockReadGuard<'static, T>, RcRwLockReadGuardian, read)
     }
 }
 
@@ -330,8 +327,8 @@ impl<T> RcRwLockWriteGuardian<T> {
     /// This function will return an error if the `RwLock` is poisoned. An `RwLock` is poisoned
     /// whenever a writer panics while holding an exclusive lock. An error will be returned when
     /// the lock is acquired.
-    pub fn take(handle: rc::Rc<sync::RwLock<T>>) -> sync::LockResult<RcRwLockWriteGuardian<T>> {
-        take!(handle, sync::RwLockWriteGuard<'static, T>, RcRwLockWriteGuardian, write)
+    pub fn take(handle: rc::Rc<RwLock<T>>) -> RcRwLockWriteGuardian<T> {
+        take!(handle, RwLockWriteGuard<'static, T>, RcRwLockWriteGuardian, write)
     }
 }
 
@@ -348,8 +345,8 @@ impl<T> RcMutexGuardian<T> {
     ///
     /// If another user of this mutex panicked while holding the mutex, then this call will return
     /// an error once the mutex is acquired.
-    pub fn take(handle: rc::Rc<sync::Mutex<T>>) -> sync::LockResult<RcMutexGuardian<T>> {
-        take!(handle, sync::MutexGuard<'static, T>, RcMutexGuardian, lock)
+    pub fn take(handle: rc::Rc<Mutex<T>>) -> RcMutexGuardian<T> {
+        take!(handle, MutexGuard<'static, T>, RcMutexGuardian, lock)
     }
 }
 
@@ -359,57 +356,60 @@ impl<T> RcMutexGuardian<T> {
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use std::sync;
     use std::rc;
 
+    use parking_lot::{Mutex, RwLock};
+
     #[test]
     fn arc_rw_read() {
-        let base = sync::Arc::new(sync::RwLock::new(true));
+        let base = sync::Arc::new(RwLock::new(true));
 
         // the use of scopes below is necessary so that we can drop base at the end.
         // otherwise, all the x1's (i.e., base.read()) would hold on to borrows.
         // this is part of the problem that Guardian is trying to solve.
 
         let x2 = {
-            let x1 = base.read().unwrap();
-            let x2 = ArcRwLockReadGuardian::take(base.clone()).unwrap();
+            let x1 = base.read();
+            let x2 = ArcRwLockReadGuardian::take(base.clone());
 
             // guardian dereferences correctly
             assert_eq!(&*x1, &*x2);
 
             // guardian holds read lock
             drop(x1);
-            assert!(base.try_write().is_err(), "guardian holds read lock");
+            assert!(base.try_write().is_none(), "guardian holds read lock");
 
             x2
         };
 
         {
             // guardian can be moved
-            let x1 = base.read().unwrap();
+            let x1 = base.read();
             let x2_ = x2;
             assert_eq!(&*x1, &*x2_);
 
             // moving guardian does not release lock
             drop(x1);
-            assert!(base.try_write().is_err(), "guardian still holds read lock");
+            assert!(base.try_write().is_none(), "guardian still holds read lock");
 
             // dropping guardian drops read lock
             drop(x2_);
-            assert!(base.try_write().is_ok(), "guardian drops read lock");
+            assert!(base.try_write().is_some(), "guardian drops read lock");
         }
 
         // guardian works even after all other Arcs have been dropped
-        let x = ArcRwLockReadGuardian::take(base).unwrap();
+        let x = ArcRwLockReadGuardian::take(base);
         assert_eq!(&*x, &true);
     }
 
     #[test]
     fn arc_rw_write() {
-        let base = sync::Arc::new(sync::RwLock::new(true));
+        let base = sync::Arc::new(RwLock::new(true));
 
-        let mut x = ArcRwLockWriteGuardian::take(base.clone()).unwrap();
+        let mut x = ArcRwLockWriteGuardian::take(base.clone());
 
         // guardian dereferences correctly
         assert_eq!(&*x, &true);
@@ -419,29 +419,29 @@ mod tests {
         assert_eq!(&*x, &false);
 
         // guardian holds write lock
-        assert!(base.try_read().is_err(), "guardian holds write lock");
+        assert!(base.try_read().is_none(), "guardian holds write lock");
 
         // guardian can be moved
         let x_ = x;
         assert_eq!(&*x_, &false);
 
         // moving guardian does not release lock
-        assert!(base.try_read().is_err(), "guardian still holds write lock");
+        assert!(base.try_read().is_none(), "guardian still holds write lock");
 
         // dropping guardian drops write lock
         drop(x_);
-        assert!(base.try_read().is_ok(), "guardian drops write lock");
+        assert!(base.try_read().is_some(), "guardian drops write lock");
 
         // guardian works even after all other Arcs have been dropped
-        let x = ArcRwLockWriteGuardian::take(base).unwrap();
+        let x = ArcRwLockWriteGuardian::take(base);
         assert_eq!(&*x, &false);
     }
 
     #[test]
     fn arc_mu() {
-        let base = sync::Arc::new(sync::Mutex::new(true));
+        let base = sync::Arc::new(Mutex::new(true));
 
-        let mut x = ArcMutexGuardian::take(base.clone()).unwrap();
+        let mut x = ArcMutexGuardian::take(base.clone());
 
         // guardian dereferences correctly
         assert_eq!(&*x, &true);
@@ -451,71 +451,71 @@ mod tests {
         assert_eq!(&*x, &false);
 
         // guardian holds lock
-        assert!(base.try_lock().is_err(), "guardian holds lock");
+        assert!(base.try_lock().is_none(), "guardian holds lock");
 
         // guardian can be moved
         let x_ = x;
         assert_eq!(&*x_, &false);
 
         // moving guardian does not release lock
-        assert!(base.try_lock().is_err(), "guardian still holds lock");
+        assert!(base.try_lock().is_none(), "guardian still holds lock");
 
         // dropping guardian drops lock
         drop(x_);
-        assert!(base.try_lock().is_ok(), "guardian drops lock");
+        assert!(base.try_lock().is_some(), "guardian drops lock");
 
         // guardian works even after all other Arcs have been dropped
-        let x = ArcMutexGuardian::take(base).unwrap();
+        let x = ArcMutexGuardian::take(base);
         assert_eq!(&*x, &false);
     }
 
     #[test]
     fn rc_rw_read() {
-        let base = rc::Rc::new(sync::RwLock::new(true));
+        let base = rc::Rc::new(RwLock::new(true));
 
         // the use of scopes below is necessary so that we can drop base at the end.
         // otherwise, all the x1's (i.e., base.read()) would hold on to borrows.
         // this is part of the problem that Guardian is trying to solve.
 
         let x2 = {
-            let x1 = base.read().unwrap();
-            let x2 = RcRwLockReadGuardian::take(base.clone()).unwrap();
+            let x1 = base.read();
+            let x2 = RcRwLockReadGuardian::take(base.clone());
 
             // guardian dereferences correctly
             assert_eq!(&*x1, &*x2);
 
             // guardian holds read lock
             drop(x1);
-            assert!(base.try_write().is_err(), "guardian holds read lock");
+            assert!(base.try_write().is_none(), "guardian holds read lock");
 
             x2
         };
 
         {
             // guardian can be moved
-            let x1 = base.read().unwrap();
+            let x1 = base.read();
             let x2_ = x2;
             assert_eq!(&*x1, &*x2_);
 
             // moving guardian does not release lock
             drop(x1);
-            assert!(base.try_write().is_err(), "guardian still holds read lock");
+            assert!(base.try_write().is_none(), "guardian still holds read lock");
 
             // dropping guardian drops read lock
             drop(x2_);
-            assert!(base.try_write().is_ok(), "guardian drops read lock");
+            assert!(base.try_write().is_some(), "guardian drops read lock");
         }
 
         // guardian works even after all other Rcs have been dropped
-        let x = RcRwLockReadGuardian::take(base).unwrap();
+        let x = RcRwLockReadGuardian::take(base);
         assert_eq!(&*x, &true);
     }
 
     #[test]
     fn rc_rw_write() {
-        let base = rc::Rc::new(sync::RwLock::new(true));
+        let base = rc::Rc::new(RwLock::new(true));
 
-        let mut x = RcRwLockWriteGuardian::take(base.clone()).unwrap();
+        let mut x = RcRwLockWriteGuardian::take(base.clone());
 
         // guardian dereferences correctly
         assert_eq!(&*x, &true);
@@ -525,29 +525,29 @@ mod tests {
         assert_eq!(&*x, &false);
 
         // guardian holds write lock
-        assert!(base.try_read().is_err(), "guardian holds write lock");
+        assert!(base.try_read().is_none(), "guardian holds write lock");
 
         // guardian can be moved
         let x_ = x;
         assert_eq!(&*x_, &false);
 
         // moving guardian does not release lock
-        assert!(base.try_read().is_err(), "guardian still holds write lock");
+        assert!(base.try_read().is_none(), "guardian still holds write lock");
 
         // dropping guardian drops write lock
         drop(x_);
-        assert!(base.try_read().is_ok(), "guardian drops write lock");
+        assert!(base.try_read().is_some(), "guardian drops write lock");
 
         // guardian works even after all other Rcs have been dropped
-        let x = RcRwLockWriteGuardian::take(base).unwrap();
+        let x = RcRwLockWriteGuardian::take(base);
         assert_eq!(&*x, &false);
     }
 
     #[test]
     fn rc_mu() {
-        let base = rc::Rc::new(sync::Mutex::new(true));
+        let base = rc::Rc::new(Mutex::new(true));
 
-        let mut x = RcMutexGuardian::take(base.clone()).unwrap();
+        let mut x = RcMutexGuardian::take(base.clone());
 
         // guardian dereferences correctly
         assert_eq!(&*x, &true);
@@ -557,21 +557,21 @@ mod tests {
         assert_eq!(&*x, &false);
 
         // guardian holds lock
-        assert!(base.try_lock().is_err(), "guardian holds lock");
+        assert!(base.try_lock().is_none(), "guardian holds lock");
 
         // guardian can be moved
         let x_ = x;
         assert_eq!(&*x_, &false);
 
         // moving guardian does not release lock
-        assert!(base.try_lock().is_err(), "guardian still holds lock");
+        assert!(base.try_lock().is_none(), "guardian still holds lock");
 
         // dropping guardian drops lock
         drop(x_);
-        assert!(base.try_lock().is_ok(), "guardian drops lock");
+        assert!(base.try_lock().is_some(), "guardian drops lock");
 
         // guardian works even after all other Rcs have been dropped
-        let x = RcMutexGuardian::take(base).unwrap();
+        let x = RcMutexGuardian::take(base);
         assert_eq!(&*x, &false);
     }
 }
